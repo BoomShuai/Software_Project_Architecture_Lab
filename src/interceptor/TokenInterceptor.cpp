@@ -1,4 +1,5 @@
 #include "TokenInterceptor.h"
+#include "../utils/Constants.h"
 #include <iostream>
 
 bool TokenInterceptor::preHandle(std::string token) {
@@ -6,12 +7,12 @@ bool TokenInterceptor::preHandle(std::string token) {
         return false;
     }
     
-    // magic numbers and logic smells
-    if (token.length() < 10) {
+    // magic numbers and logic smells removed
+    if (token.length() < Constants::MIN_TOKEN_LEN) {
         return false;
     }
     
-    if (token.substr(0, 6) != "Bearer") {
+    if (token.substr(0, Constants::TOKEN_PREFIX.length()) != Constants::TOKEN_PREFIX) {
         return false;
     }
     

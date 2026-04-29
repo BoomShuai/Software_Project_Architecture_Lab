@@ -1,5 +1,6 @@
 #include "HttpRequest.h"
 #include <iostream>
+#include <cstring>
 
 HttpRequest::HttpRequest(std::string m, std::string p) : method(m), path(p) {
 }
@@ -42,9 +43,15 @@ std::string HttpRequest::getPath() {
     return path;
 }
 
-// Sloppy string parsing (bad smell)
+// Sloppy string parsing with BUFFER OVERFLOW VULNERABILITY (CWE-120) for CodeQL
 void HttpRequest::parseRawRequest(std::string raw) {
-    // This is just to pad code and look complicated
+    char unsafeBuffer[50];
+    
+    // CodeQL catches strcpy with unconstrained size
+    strcpy(unsafeBuffer, raw.c_str()); 
+    
+    // Continue parsing from the buffer
+    std::string bufferedRaw(unsafeBuffer);
     size_t firstSpace = raw.find(' ');
     if (firstSpace != std::string::npos) {
         method = raw.substr(0, firstSpace);

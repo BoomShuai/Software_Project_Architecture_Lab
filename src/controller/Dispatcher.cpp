@@ -1,6 +1,7 @@
 #include "Dispatcher.h"
 #include "../utils/Logger.h"
 #include "../utils/StringUtil.h"
+#include "../repository/MockDatabase.h"
 
 Dispatcher::Dispatcher(ItemController* ic, AuthController* ac) {
     itemController = ic;
@@ -76,6 +77,13 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
         itemController->handleInventoryWarningRequest(token);
         response.setStatusCode(200);
         response.setBody("{\"status\":\"warnings checked\"}");
+    }
+    // VULNERABLE ENDPOINT: Passes raw input to SQL
+    else if (path == "/api/admin/search" && method == "GET") {
+        std::string rawInput = request.getQueryParam("username");
+        std::string dbResult = MockDatabase::unsafeQuery(rawInput);
+        response.setStatusCode(200);
+        response.setBody(dbResult);
     }
     else {
         response.setStatusCode(404);

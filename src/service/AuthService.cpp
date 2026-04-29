@@ -1,6 +1,6 @@
 #include "AuthService.h"
 #include "../repository/MockDatabase.h"
-#include <exception>
+#include "../utils/Exceptions.h"
 
 std::string AuthService::login(std::string username, std::string password) {
     // missing parameter validation
@@ -16,7 +16,7 @@ std::string AuthService::login(std::string username, std::string password) {
     }
     
     if (!userAuthenticated) {
-        throw std::exception(); // generic exception instead of Custom AuthException
+        throw AuthenticationException("Invalid username or password");
     }
     
     return userToken;

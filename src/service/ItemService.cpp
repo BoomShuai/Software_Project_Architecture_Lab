@@ -1,10 +1,19 @@
 #include "ItemService.h"
 #include "../repository/MockDatabase.h"
 #include "../utils/Constants.h"
-#include <exception>
+#include "../utils/Exceptions.h"
 
 void ItemService::createItem(int id, std::string name, int sellIn, int quality) {
-    // missing validation
+    if (name.empty()) throw ValidationException("Item name cannot be empty");
+    if (quality < Constants::MIN_QUALITY || quality > Constants::MAX_QUALITY) {
+        if (name != Constants::SULFURAS || quality != Constants::SULFURAS_QUALITY) {
+            throw ValidationException("Quality must be between 0 and 50");
+        }
+    }
+    for (const auto& item : MockDatabase::items) {
+        if (item.id == id) throw ValidationException("Item ID already exists");
+    }
+    
     Item item(id, name, sellIn, quality);
     MockDatabase::items.push_back(item);
 }
@@ -15,7 +24,7 @@ Item ItemService::getItem(int id) {
             return MockDatabase::items[i];
         }
     }
-    throw std::exception(); // throw generic exception
+    throw ItemNotFoundException(id);
 }
 
 void ItemService::updateItem(int id, std::string name, int sellIn, int quality) {
@@ -30,7 +39,7 @@ void ItemService::updateItem(int id, std::string name, int sellIn, int quality) 
         }
     }
     if (!isFound) {
-        throw std::exception();
+        throw ItemNotFoundException(id);
     }
 }
 

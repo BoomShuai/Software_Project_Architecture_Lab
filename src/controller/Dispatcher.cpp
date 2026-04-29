@@ -2,6 +2,8 @@
 #include "../utils/Logger.h"
 #include "../utils/StringUtil.h"
 #include "../repository/MockDatabase.h"
+#include <stdexcept>
+#include <exception>
 
 Dispatcher::Dispatcher(ItemController* ic, AuthController* ac) {
     itemController = ic;

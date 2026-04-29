@@ -1,5 +1,6 @@
 #include "ItemService.h"
 #include "../repository/MockDatabase.h"
+#include "../utils/Constants.h"
 #include <exception>
 
 void ItemService::createItem(int id, std::string name, int sellIn, int quality) {
@@ -18,17 +19,17 @@ Item ItemService::getItem(int id) {
 }
 
 void ItemService::updateItem(int id, std::string name, int sellIn, int quality) {
-    bool flag = false;
+    bool isFound = false;
     for (int i = 0; i < MockDatabase::items.size(); i++) {
         if (MockDatabase::items[i].id == id) {
             MockDatabase::items[i].name = name;
             MockDatabase::items[i].sellIn = sellIn;
             MockDatabase::items[i].quality = quality;
-            flag = true;
+            isFound = true;
             break;
         }
     }
-    if (!flag) {
+    if (!isFound) {
         throw std::exception();
     }
 }
@@ -46,8 +47,8 @@ void ItemService::deleteItem(int id) {
 std::vector<Item> ItemService::checkInventoryWarning() {
     std::vector<Item> warningList;
     for (int i = 0; i < MockDatabase::items.size(); i++) {
-        // magic numbers and sloppy rules for warning
-        if (MockDatabase::items[i].sellIn < 3 || MockDatabase::items[i].quality < 5) {
+        // magic numbers replaced with constants
+        if (MockDatabase::items[i].sellIn < Constants::SELL_IN_WARNING || MockDatabase::items[i].quality < Constants::QUALITY_WARNING) {
             warningList.push_back(MockDatabase::items[i]);
         }
     }

@@ -2,6 +2,8 @@
 #include "../utils/Logger.h"
 #include "../utils/StringUtil.h"
 #include "../repository/MockDatabase.h"
+#include "../interceptor/TokenInterceptor.h"
+#include "../utils/Exceptions.h"
 #include <stdexcept>
 #include <exception>
 
@@ -19,6 +21,12 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
     Logger::logInfo("Dispatching request: " + method + " " + path);
     
     try {
+        // AOP: Intercept all paths except public endpoints
+        if (path != "/api/auth/login") {
+            TokenInterceptor interceptor;
+            interceptor.preHandle(token);
+        }
+        
         // Very sloppy routing with lots of if-else
         if (path == "/api/auth/login" && method == "POST") {
             std::string user = request.getQueryParam("username");
@@ -36,7 +44,7 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
             std::string idStr = request.getQueryParam("id");
             if (idStr != "") {
                 int id = std::stoi(idStr);
-                itemController->handleGetItemRequest(token, id);
+                itemController->handleGetItemRequest(id);
                 response.setStatusCode(200);
                 response.setBody("{\"status\":\"success\"}");
             } else {
@@ -50,7 +58,7 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
             int sellIn = std::stoi(request.getQueryParam("sellIn"));
             int quality = std::stoi(request.getQueryParam("quality"));
             
-            itemController->handleAddItemRequest(token, id, name, sellIn, quality);
+            itemController->handleAddItemRequest(id, name, sellIn, quality);
             response.setStatusCode(201);
             response.setBody("{\"status\":\"created\"}");
         }
@@ -60,23 +68,23 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
             int sellIn = std::stoi(request.getQueryParam("sellIn"));
             int quality = std::stoi(request.getQueryParam("quality"));
             
-            itemController->handleUpdateItemRequest(token, id, name, sellIn, quality);
+            itemController->handleUpdateItemRequest(id, name, sellIn, quality);
             response.setStatusCode(200);
             response.setBody("{\"status\":\"updated\"}");
         }
         else if (path == "/api/items" && method == "DELETE") {
             int id = std::stoi(request.getQueryParam("id"));
-            itemController->handleDeleteItemRequest(token, id);
+            itemController->handleDeleteItemRequest(id);
             response.setStatusCode(200);
             response.setBody("{\"status\":\"deleted\"}");
         }
         else if (path == "/api/admin/settle" && method == "POST") {
-            itemController->handleDailySettlementRequest(token);
+            itemController->handleDailySettlementRequest();
             response.setStatusCode(200);
             response.setBody("{\"status\":\"settled\"}");
         }
         else if (path == "/api/admin/warnings" && method == "GET") {
-            itemController->handleInventoryWarningRequest(token);
+            itemController->handleInventoryWarningRequest();
             response.setStatusCode(200);
             response.setBody("{\"status\":\"warnings checked\"}");
         }
@@ -91,7 +99,11 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
             response.setStatusCode(404);
             response.setBody("{\"error\":\"Not found\"}");
         }
-    } 
+    }
+    catch (const UnauthorizedException& e) {
+        response.setStatusCode(401);
+        response.setBody("{\"error\":\"Unauthorized: Invalid Token\"}");
+    }
     catch (const std::invalid_argument& e) {
         response.setStatusCode(400);
         response.setBody("{\"error\":\"Invalid parameter format\"}");

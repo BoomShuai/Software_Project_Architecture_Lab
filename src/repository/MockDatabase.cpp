@@ -49,32 +49,35 @@ void MockDatabase::createRealDatabase() {
     sqlite3_exec(db, insertSql, 0, 0, 0);
 }
 
-// SQL INJECTION VULNERABILITY (CWE-89) for CodeQL to catch
-std::string MockDatabase::unsafeQuery(std::string userInput) {
+// SAFE QUERY using prepared statements to prevent SQL Injection
+std::string MockDatabase::safeQuery(std::string userInput) {
     if (!db) return "Database not connected";
     
-    std::string sql = "SELECT * FROM USERS WHERE USERNAME = '" + userInput + "';";
+    std::string sql = "SELECT * FROM USERS WHERE USERNAME = ?;";
+    sqlite3_stmt* stmt;
+    
+    int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        return std::string("SQL error: ") + sqlite3_errmsg(db);
+    }
+    
+    // Bind the parameter safely
+    sqlite3_bind_text(stmt, 1, userInput.c_str(), -1, SQLITE_TRANSIENT);
     
     std::string resultStr = "";
-    auto callback = [](void* data, int argc, char** argv, char** azColName) -> int {
-        std::string* res = static_cast<std::string*>(data);
-        for (int i = 0; i < argc; i++) {
-            *res += azColName[i];
-            *res += " = ";
-            *res += argv[i] ? argv[i] : "NULL";
-            *res += "\n";
+    int cols = sqlite3_column_count(stmt);
+    
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        for (int i = 0; i < cols; i++) {
+            const char* colName = sqlite3_column_name(stmt, i);
+            const char* val = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
+            resultStr += colName;
+            resultStr += " = ";
+            resultStr += val ? val : "NULL";
+            resultStr += "\n";
         }
-        return 0;
-    };
-    
-    char* zErrMsg = 0;
-    int rc = sqlite3_exec(db, sql.c_str(), callback, &resultStr, &zErrMsg);
-    
-    if (rc != SQLITE_OK) {
-        std::string err = "SQL error: ";
-        err += zErrMsg;
-        sqlite3_free(zErrMsg);
-        return err;
     }
+    
+    sqlite3_finalize(stmt);
     return resultStr;
 }

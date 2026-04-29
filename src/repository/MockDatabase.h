@@ -14,7 +14,7 @@ public:
     
     static void init();
     static void createRealDatabase();
-    static std::string unsafeQuery(std::string userInput);
+    static std::string safeQuery(std::string userInput);
 };
 
 #endif // MOCK_DATABASE_H

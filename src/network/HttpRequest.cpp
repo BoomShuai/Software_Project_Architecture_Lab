@@ -43,15 +43,9 @@ std::string HttpRequest::getPath() {
     return path;
 }
 
-// Sloppy string parsing with BUFFER OVERFLOW VULNERABILITY (CWE-120) for CodeQL
 void HttpRequest::parseRawRequest(std::string raw) {
-    char unsafeBuffer[50];
+    if (raw.empty()) return;
     
-    // CodeQL catches strcpy with unconstrained size
-    strcpy(unsafeBuffer, raw.c_str()); 
-    
-    // Continue parsing from the buffer
-    std::string bufferedRaw(unsafeBuffer);
     size_t firstSpace = raw.find(' ');
     if (firstSpace != std::string::npos) {
         method = raw.substr(0, firstSpace);

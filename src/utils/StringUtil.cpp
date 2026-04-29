@@ -26,21 +26,15 @@ std::vector<std::string> StringUtil::split(const std::string& str, char delimite
 
 std::string StringUtil::toUpper(const std::string& str) {
     std::string result = str;
-    for (int i = 0; i < result.length(); i++) {
-        if (result[i] >= 'a' && result[i] <= 'z') {
-            result[i] = result[i] - 32; // Magic number bad smell
-        }
-    }
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::toupper(c); });
     return result;
 }
 
 std::string StringUtil::toLower(const std::string& str) {
     std::string result = str;
-    for (int i = 0; i < result.length(); i++) {
-        if (result[i] >= 'A' && result[i] <= 'Z') {
-            result[i] = result[i] + 32; // Magic number bad smell
-        }
-    }
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
     return result;
 }
 

@@ -1,0 +1,49 @@
+name: "CI: Build, Test & Coverage"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build, Test & Coverage Report
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsqlite3-dev lcov
+
+    - name: Configure CMake with tests and coverage
+      run: |
+        mkdir -p build && cd build
+        cmake .. -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON
+
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+
+    - name: Run unit tests
+      run: |
+        cd build
+        ctest --output-on-failure --verbose
+
+    - name: Generate coverage report (lcov)
+      run: |
+        cd build
+        lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
+        lcov --remove coverage.info '/usr/*' '*/googletest/*' '*/tests/*' --output-file coverage_filtered.info --ignore-errors unused
+        lcov --list coverage_filtered.info
+
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: build/coverage_filtered.info

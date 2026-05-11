@@ -1,7 +1,13 @@
 build/
+build_test/
 *.o
 *.out
 .DS_Store
 .vscode/
 .idea/
 cmake-build-*/
+GildedRoseBackend
+GildedRoseBackend_v2
+test_sqlite
+test_sqlite.cpp
+gilded_rose.db

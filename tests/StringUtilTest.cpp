@@ -48,9 +48,8 @@ TEST(StringUtilTest, Split_SingleElement) {
 
 TEST(StringUtilTest, Split_EmptyString) {
     auto result = StringUtil::split("", ',');
-    // std::getline on empty produces one empty token
-    ASSERT_EQ(result.size(), 1);
-    EXPECT_EQ(result[0], "");
+    // std::getline on an empty stream sets failbit without extracting any token
+    ASSERT_EQ(result.size(), 0);
 }
 
 // === TO UPPER ===

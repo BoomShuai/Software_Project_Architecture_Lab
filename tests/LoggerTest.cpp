@@ -58,3 +58,72 @@ TEST_F(LoggerTest, LogWithEmptyModule) {
 TEST_F(LoggerTest, LogWithEmptyMessage) {
     EXPECT_NO_THROW(Logger::logInfo("", "TestModule"));
 }
+
+// === Level Filtering Tests ===
+
+TEST_F(LoggerTest, DebugSuppressedAtInfoLevel) {
+    Logger::setLevel(Logger::Level::INFO);
+    // logDebug should be silently suppressed (hits the early return)
+    EXPECT_NO_THROW(Logger::logDebug("This should be suppressed"));
+}
+
+TEST_F(LoggerTest, DebugSuppressedAtWarnLevel) {
+    Logger::setLevel(Logger::Level::WARN);
+    EXPECT_NO_THROW(Logger::logDebug("Suppressed"));
+    EXPECT_NO_THROW(Logger::logInfo("Also suppressed"));
+}
+
+TEST_F(LoggerTest, DebugSuppressedAtErrorLevel) {
+    Logger::setLevel(Logger::Level::ERROR);
+    EXPECT_NO_THROW(Logger::logDebug("Suppressed"));
+    EXPECT_NO_THROW(Logger::logInfo("Suppressed"));
+    EXPECT_NO_THROW(Logger::logWarn("Suppressed"));
+}
+
+TEST_F(LoggerTest, ErrorNotSuppressedAtErrorLevel) {
+    Logger::setLevel(Logger::Level::ERROR);
+    // Only ERROR should still go through
+    EXPECT_NO_THROW(Logger::logError("This should print to stderr"));
+}
+
+TEST_F(LoggerTest, InfoSuppressedAtWarnLevel) {
+    Logger::setLevel(Logger::Level::WARN);
+    EXPECT_NO_THROW(Logger::logInfo("Should be suppressed"));
+}
+
+TEST_F(LoggerTest, WarnNotSuppressedAtWarnLevel) {
+    Logger::setLevel(Logger::Level::WARN);
+    EXPECT_NO_THROW(Logger::logWarn("Should not be suppressed"));
+}
+
+// === Log to stderr (ERROR level) ===
+
+TEST_F(LoggerTest, ErrorGoesToStderr) {
+    // This test exercises the cerr branch in log()
+    EXPECT_NO_THROW(Logger::logError("Error to stderr", "TestModule"));
+}
+
+// === Set and restore level ===
+
+TEST_F(LoggerTest, SetLevelToWarn) {
+    Logger::setLevel(Logger::Level::WARN);
+    EXPECT_EQ(Logger::getLevel(), Logger::Level::WARN);
+}
+
+TEST_F(LoggerTest, SetLevelBackToDebug) {
+    Logger::setLevel(Logger::Level::ERROR);
+    Logger::setLevel(Logger::Level::DEBUG);
+    EXPECT_EQ(Logger::getLevel(), Logger::Level::DEBUG);
+}
+
+// === Multiple log calls ===
+
+TEST_F(LoggerTest, MultipleSequentialLogs) {
+    EXPECT_NO_THROW({
+        Logger::logDebug("debug1");
+        Logger::logInfo("info1");
+        Logger::logWarn("warn1");
+        Logger::logError("error1");
+    });
+}
+

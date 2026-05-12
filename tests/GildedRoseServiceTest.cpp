@@ -77,3 +77,69 @@ TEST_F(GildedRoseServiceTest, Settlement_QualityNeverNegative) {
     service.dailySettlement();
     EXPECT_GE(MockDatabase::items[0].quality, 0);
 }
+
+// === Additional Branch Coverage ===
+
+TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_MoreThan10Days) {
+    MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 15, 20));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 21); // +1 when > 10 days
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly10Days) {
+    MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 10, 20));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 22); // +2 when 6-10 days
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly6Days) {
+    MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 6, 20));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 22); // +2 when 6-10 days
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly5Days) {
+    MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 5, 20));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 23); // +3 when 1-5 days
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly1Day) {
+    MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 1, 20));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 23); // +3 when 1-5 days
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_AgedBrie_QualityMaxAt50) {
+    MockDatabase::items.push_back(Item(1, Constants::AGED_BRIE, 2, 50));
+    service.dailySettlement();
+    EXPECT_LE(MockDatabase::items[0].quality, 50); // Never exceeds 50
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_AgedBrie_ExpiredDoubleIncrease) {
+    MockDatabase::items.push_back(Item(1, Constants::AGED_BRIE, 0, 10));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 12); // +2 when expired
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_NormalItem_QualityAt1_Expired) {
+    MockDatabase::items.push_back(Item(1, "Sword", 0, 1));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].quality, 0); // Would be -1, clamped to 0
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_NormalItem_NegativeSellIn) {
+    MockDatabase::items.push_back(Item(1, "Sword", -5, 10));
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].sellIn, -6);
+    EXPECT_EQ(MockDatabase::items[0].quality, 8); // Double degradation
+}
+
+TEST_F(GildedRoseServiceTest, Settlement_TwoConsecutiveDays) {
+    MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    service.dailySettlement();
+    service.dailySettlement();
+    EXPECT_EQ(MockDatabase::items[0].sellIn, 8);
+    EXPECT_EQ(MockDatabase::items[0].quality, 18);
+}
+

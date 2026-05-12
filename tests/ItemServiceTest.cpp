@@ -136,3 +136,62 @@ TEST_F(ItemServiceTest, GetAllItems_EmptyWhenNoItems) {
     auto all = service.getAllItems();
     EXPECT_EQ(all.size(), 0);
 }
+
+// === Boundary and Branch Coverage ===
+
+TEST_F(ItemServiceTest, CreateItem_QualityExactly0_Allowed) {
+    EXPECT_NO_THROW(service.createItem(1, "Zero Quality", 10, 0));
+    EXPECT_EQ(MockDatabase::items[0].quality, 0);
+}
+
+TEST_F(ItemServiceTest, CreateItem_QualityExactly50_Allowed) {
+    EXPECT_NO_THROW(service.createItem(1, "Max Quality", 10, 50));
+    EXPECT_EQ(MockDatabase::items[0].quality, 50);
+}
+
+TEST_F(ItemServiceTest, CreateItem_SulfurasNon80Quality_Throws) {
+    // Sulfuras with quality != 80 should throw
+    EXPECT_THROW(service.createItem(1, Constants::SULFURAS, 0, 51), ValidationException);
+}
+
+TEST_F(ItemServiceTest, CreateItem_SulfurasNegativeQuality_Throws) {
+    EXPECT_THROW(service.createItem(1, Constants::SULFURAS, 0, -1), ValidationException);
+}
+
+TEST_F(ItemServiceTest, CreateItem_NormalItemQuality80_Throws) {
+    // Normal item with quality 80 should throw (only Sulfuras allowed)
+    EXPECT_THROW(service.createItem(1, "Normal", 10, 80), ValidationException);
+}
+
+TEST_F(ItemServiceTest, GetItem_FindsSecondItem) {
+    service.createItem(1, "First", 10, 20);
+    service.createItem(2, "Second", 5, 15);
+    Item result = service.getItem(2);
+    EXPECT_EQ(result.name, "Second");
+}
+
+TEST_F(ItemServiceTest, UpdateItem_VerifiesOldDataReplaced) {
+    service.createItem(1, "Old", 10, 20);
+    service.updateItem(1, "New", 99, 49);
+    EXPECT_EQ(MockDatabase::items[0].name, "New");
+    EXPECT_EQ(MockDatabase::items[0].sellIn, 99);
+    EXPECT_EQ(MockDatabase::items[0].quality, 49);
+}
+
+TEST_F(ItemServiceTest, DeleteItem_MiddleItem) {
+    service.createItem(1, "A", 10, 10);
+    service.createItem(2, "B", 10, 10);
+    service.createItem(3, "C", 10, 10);
+    service.deleteItem(2);
+    EXPECT_EQ(MockDatabase::items.size(), 2);
+    EXPECT_EQ(MockDatabase::items[0].name, "A");
+    EXPECT_EQ(MockDatabase::items[1].name, "C");
+}
+
+TEST_F(ItemServiceTest, CheckInventoryWarning_BoundaryNotFlagged) {
+    // sellIn exactly at warning threshold, quality above warning
+    service.createItem(1, "OnBorder", Constants::SELL_IN_WARNING, Constants::QUALITY_WARNING);
+    auto warnings = service.checkInventoryWarning();
+    EXPECT_EQ(warnings.size(), 0);
+}
+

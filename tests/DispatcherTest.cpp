@@ -153,3 +153,53 @@ TEST_F(DispatcherTest, InvalidParamFormat_Returns400) {
     HttpResponse resp = dispatcher->dispatch(req);
     EXPECT_EQ(resp.getStatusCode(), 400);
 }
+
+// === Search Route ===
+
+TEST_F(DispatcherTest, SearchRoute_WithToken) {
+    MockDatabase::init();  // Initialize the SQLite DB
+    HttpRequest req("GET", "/api/admin/search");
+    req.setHeader("Authorization", "Bearer admin_secret_token");
+    req.setQueryParam("username", "admin");
+    HttpResponse resp = dispatcher->dispatch(req);
+    EXPECT_EQ(resp.getStatusCode(), 200);
+}
+
+TEST_F(DispatcherTest, SearchRoute_NonExistentUser) {
+    MockDatabase::init();
+    HttpRequest req("GET", "/api/admin/search");
+    req.setHeader("Authorization", "Bearer admin_secret_token");
+    req.setQueryParam("username", "nobody");
+    HttpResponse resp = dispatcher->dispatch(req);
+    EXPECT_EQ(resp.getStatusCode(), 200);
+}
+
+// === Exception Handling ===
+
+TEST_F(DispatcherTest, GetItem_NotFound_Returns500) {
+    HttpRequest req("GET", "/api/items");
+    req.setHeader("Authorization", "Bearer admin_secret_token");
+    req.setQueryParam("id", "999");
+    HttpResponse resp = dispatcher->dispatch(req);
+    // ItemNotFoundException is a std::exception subclass -> caught by generic handler
+    EXPECT_EQ(resp.getStatusCode(), 500);
+}
+
+TEST_F(DispatcherTest, CreateItem_EmptyName_Returns500) {
+    HttpRequest req("POST", "/api/items");
+    req.setHeader("Authorization", "Bearer admin_secret_token");
+    req.setQueryParam("id", "1");
+    req.setQueryParam("name", "");
+    req.setQueryParam("sellIn", "10");
+    req.setQueryParam("quality", "20");
+    HttpResponse resp = dispatcher->dispatch(req);
+    EXPECT_EQ(resp.getStatusCode(), 500);
+}
+
+TEST_F(DispatcherTest, Login_EmptyCredentials) {
+    HttpRequest req("POST", "/api/auth/login");
+    req.setQueryParam("username", "");
+    req.setQueryParam("password", "");
+    HttpResponse resp = dispatcher->dispatch(req);
+    EXPECT_EQ(resp.getStatusCode(), 401);
+}

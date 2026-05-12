@@ -20,8 +20,16 @@ jobs:
     - name: Build project and generate compile_commands.json
       run: |
         mkdir -p build && cd build
-        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON ..
         make
+
+    - name: Run tests and generate coverage report
+      run: |
+        cd build
+        ctest --output-on-failure
+        cd ..
+        sudo apt-get install -y gcovr
+        gcovr --sonarqube > coverage.xml
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master

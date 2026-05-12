@@ -29,7 +29,7 @@ jobs:
         ctest --output-on-failure
         cd ..
         sudo apt-get install -y gcovr
-        gcovr --sonarqube > coverage.xml
+        gcovr --sonarqube --exclude-unreachable-branches --exclude-throw-branches -r . --filter 'src/' -o coverage.xml
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master

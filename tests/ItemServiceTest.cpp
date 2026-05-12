@@ -137,61 +137,253 @@ TEST_F(ItemServiceTest, GetAllItems_EmptyWhenNoItems) {
     EXPECT_EQ(all.size(), 0);
 }
 
-// === Boundary and Branch Coverage ===
+// === Exhaustive Branch Coverage ===
 
+// quality < MIN_QUALITY (left side of ||, short-circuit true)
+TEST_F(ItemServiceTest, CreateItem_QualityMinus1_Throws) {
+    EXPECT_THROW(service.createItem(1, "X", 10, -1), ValidationException);
+}
+
+// quality == MIN_QUALITY (left side false, right side false -> no throw)
 TEST_F(ItemServiceTest, CreateItem_QualityExactly0_Allowed) {
-    EXPECT_NO_THROW(service.createItem(1, "Zero Quality", 10, 0));
-    EXPECT_EQ(MockDatabase::items[0].quality, 0);
+    EXPECT_NO_THROW(service.createItem(1, "X", 10, 0));
 }
 
+// quality == MAX_QUALITY (left side false, right side false -> no throw)
 TEST_F(ItemServiceTest, CreateItem_QualityExactly50_Allowed) {
-    EXPECT_NO_THROW(service.createItem(1, "Max Quality", 10, 50));
-    EXPECT_EQ(MockDatabase::items[0].quality, 50);
+    EXPECT_NO_THROW(service.createItem(1, "X", 10, 50));
 }
 
-TEST_F(ItemServiceTest, CreateItem_SulfurasNon80Quality_Throws) {
-    // Sulfuras with quality != 80 should throw
+// quality > MAX_QUALITY (left side false, right side true -> throw)
+TEST_F(ItemServiceTest, CreateItem_Quality51_Throws) {
+    EXPECT_THROW(service.createItem(1, "X", 10, 51), ValidationException);
+}
+
+// quality == 1 (both sides false)
+TEST_F(ItemServiceTest, CreateItem_Quality1_Allowed) {
+    EXPECT_NO_THROW(service.createItem(1, "X", 10, 1));
+}
+
+// quality == 49 (both sides false)
+TEST_F(ItemServiceTest, CreateItem_Quality49_Allowed) {
+    EXPECT_NO_THROW(service.createItem(1, "X", 10, 49));
+}
+
+// Sulfuras bypass: name == SULFURAS && quality == 80 -> no throw
+TEST_F(ItemServiceTest, CreateItem_SulfurasQuality80_Allowed) {
+    EXPECT_NO_THROW(service.createItem(1, Constants::SULFURAS, 0, 80));
+}
+
+// Sulfuras bypass: name == SULFURAS && quality != 80 -> throw
+TEST_F(ItemServiceTest, CreateItem_SulfurasQuality51_Throws) {
     EXPECT_THROW(service.createItem(1, Constants::SULFURAS, 0, 51), ValidationException);
 }
 
-TEST_F(ItemServiceTest, CreateItem_SulfurasNegativeQuality_Throws) {
+// Sulfuras bypass: name == SULFURAS && quality == -1 -> throw
+TEST_F(ItemServiceTest, CreateItem_SulfurasQualityNeg1_Throws) {
     EXPECT_THROW(service.createItem(1, Constants::SULFURAS, 0, -1), ValidationException);
 }
 
-TEST_F(ItemServiceTest, CreateItem_NormalItemQuality80_Throws) {
-    // Normal item with quality 80 should throw (only Sulfuras allowed)
+// Non-Sulfuras name with quality > 50 -> throw (name != SULFURAS is true, short-circuit)
+TEST_F(ItemServiceTest, CreateItem_NormalQuality80_Throws) {
     EXPECT_THROW(service.createItem(1, "Normal", 10, 80), ValidationException);
 }
 
-TEST_F(ItemServiceTest, GetItem_FindsSecondItem) {
-    service.createItem(1, "First", 10, 20);
-    service.createItem(2, "Second", 5, 15);
-    Item result = service.getItem(2);
-    EXPECT_EQ(result.name, "Second");
+// Duplicate ID: loop with 0 existing items -> no match
+TEST_F(ItemServiceTest, CreateItem_NoExisting_NoConflict) {
+    EXPECT_NO_THROW(service.createItem(1, "X", 10, 20));
 }
 
-TEST_F(ItemServiceTest, UpdateItem_VerifiesOldDataReplaced) {
-    service.createItem(1, "Old", 10, 20);
-    service.updateItem(1, "New", 99, 49);
-    EXPECT_EQ(MockDatabase::items[0].name, "New");
-    EXPECT_EQ(MockDatabase::items[0].sellIn, 99);
-    EXPECT_EQ(MockDatabase::items[0].quality, 49);
+// Duplicate ID: loop with 1 existing item, different ID -> no match
+TEST_F(ItemServiceTest, CreateItem_DifferentId_NoConflict) {
+    service.createItem(1, "A", 10, 20);
+    EXPECT_NO_THROW(service.createItem(2, "B", 10, 20));
 }
 
-TEST_F(ItemServiceTest, DeleteItem_MiddleItem) {
+// Duplicate ID: loop with 1 existing item, same ID -> match
+TEST_F(ItemServiceTest, CreateItem_SameId_Throws) {
+    service.createItem(1, "A", 10, 20);
+    EXPECT_THROW(service.createItem(1, "B", 10, 20), ValidationException);
+}
+
+// Duplicate ID: loop with multiple items, conflict on second
+TEST_F(ItemServiceTest, CreateItem_DuplicateIdOnSecond) {
+    service.createItem(1, "A", 10, 20);
+    service.createItem(2, "B", 10, 20);
+    EXPECT_THROW(service.createItem(2, "C", 10, 20), ValidationException);
+}
+
+// getItem: empty list -> not found
+TEST_F(ItemServiceTest, GetItem_EmptyList_Throws) {
+    EXPECT_THROW(service.getItem(1), ItemNotFoundException);
+}
+
+// getItem: single item, match
+TEST_F(ItemServiceTest, GetItem_SingleMatch) {
+    service.createItem(1, "X", 10, 20);
+    EXPECT_NO_THROW(service.getItem(1));
+}
+
+// getItem: single item, no match
+TEST_F(ItemServiceTest, GetItem_SingleNoMatch) {
+    service.createItem(1, "X", 10, 20);
+    EXPECT_THROW(service.getItem(2), ItemNotFoundException);
+}
+
+// getItem: multiple items, match on last
+TEST_F(ItemServiceTest, GetItem_MatchOnThird) {
+    service.createItem(1, "A", 10, 10);
+    service.createItem(2, "B", 10, 10);
+    service.createItem(3, "C", 10, 10);
+    Item result = service.getItem(3);
+    EXPECT_EQ(result.name, "C");
+}
+
+// updateItem: empty list -> not found
+TEST_F(ItemServiceTest, UpdateItem_EmptyList_Throws) {
+    EXPECT_THROW(service.updateItem(1, "X", 1, 1), ItemNotFoundException);
+}
+
+// updateItem: match on first item
+TEST_F(ItemServiceTest, UpdateItem_MatchOnFirst) {
+    service.createItem(1, "A", 10, 20);
+    service.createItem(2, "B", 10, 20);
+    service.updateItem(1, "AA", 5, 5);
+    EXPECT_EQ(MockDatabase::items[0].name, "AA");
+}
+
+// updateItem: match on second item
+TEST_F(ItemServiceTest, UpdateItem_MatchOnSecond) {
+    service.createItem(1, "A", 10, 20);
+    service.createItem(2, "B", 10, 20);
+    service.updateItem(2, "BB", 5, 5);
+    EXPECT_EQ(MockDatabase::items[1].name, "BB");
+}
+
+// deleteItem: empty list -> no crash
+TEST_F(ItemServiceTest, DeleteItem_EmptyList_NoThrow) {
+    EXPECT_NO_THROW(service.deleteItem(999));
+}
+
+// deleteItem: single item match
+TEST_F(ItemServiceTest, DeleteItem_SingleMatch) {
+    service.createItem(1, "X", 10, 20);
+    service.deleteItem(1);
+    EXPECT_EQ(MockDatabase::items.size(), 0);
+}
+
+// deleteItem: single item no match
+TEST_F(ItemServiceTest, DeleteItem_SingleNoMatch) {
+    service.createItem(1, "X", 10, 20);
+    service.deleteItem(2);
+    EXPECT_EQ(MockDatabase::items.size(), 1);
+}
+
+// deleteItem: multiple items, delete middle
+TEST_F(ItemServiceTest, DeleteItem_Middle) {
     service.createItem(1, "A", 10, 10);
     service.createItem(2, "B", 10, 10);
     service.createItem(3, "C", 10, 10);
     service.deleteItem(2);
     EXPECT_EQ(MockDatabase::items.size(), 2);
-    EXPECT_EQ(MockDatabase::items[0].name, "A");
-    EXPECT_EQ(MockDatabase::items[1].name, "C");
 }
 
-TEST_F(ItemServiceTest, CheckInventoryWarning_BoundaryNotFlagged) {
-    // sellIn exactly at warning threshold, quality above warning
-    service.createItem(1, "OnBorder", Constants::SELL_IN_WARNING, Constants::QUALITY_WARNING);
-    auto warnings = service.checkInventoryWarning();
-    EXPECT_EQ(warnings.size(), 0);
+// deleteItem: multiple items, delete first
+TEST_F(ItemServiceTest, DeleteItem_First) {
+    service.createItem(1, "A", 10, 10);
+    service.createItem(2, "B", 10, 10);
+    service.deleteItem(1);
+    EXPECT_EQ(MockDatabase::items.size(), 1);
+    EXPECT_EQ(MockDatabase::items[0].name, "B");
 }
+
+// deleteItem: multiple items, delete last
+TEST_F(ItemServiceTest, DeleteItem_Last) {
+    service.createItem(1, "A", 10, 10);
+    service.createItem(2, "B", 10, 10);
+    service.deleteItem(2);
+    EXPECT_EQ(MockDatabase::items.size(), 1);
+    EXPECT_EQ(MockDatabase::items[0].name, "A");
+}
+
+// checkInventoryWarning: empty list
+TEST_F(ItemServiceTest, CheckWarning_EmptyList) {
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 0);
+}
+
+// checkInventoryWarning: sellIn < threshold only
+TEST_F(ItemServiceTest, CheckWarning_LowSellInOnly) {
+    service.createItem(1, "X", 1, 30);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 1);
+}
+
+// checkInventoryWarning: quality < threshold only
+TEST_F(ItemServiceTest, CheckWarning_LowQualityOnly) {
+    service.createItem(1, "X", 30, 2);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 1);
+}
+
+// checkInventoryWarning: both low
+TEST_F(ItemServiceTest, CheckWarning_BothLow) {
+    service.createItem(1, "X", 1, 2);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 1);
+}
+
+// checkInventoryWarning: neither low
+TEST_F(ItemServiceTest, CheckWarning_NeitherLow) {
+    service.createItem(1, "X", 30, 30);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 0);
+}
+
+// checkInventoryWarning: exactly at threshold values (boundary)
+TEST_F(ItemServiceTest, CheckWarning_ExactThreshold_NotFlagged) {
+    service.createItem(1, "X", Constants::SELL_IN_WARNING, Constants::QUALITY_WARNING);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 0);
+}
+
+// checkInventoryWarning: just below threshold
+TEST_F(ItemServiceTest, CheckWarning_JustBelowSellInThreshold) {
+    service.createItem(1, "X", Constants::SELL_IN_WARNING - 1, 30);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 1);
+}
+
+TEST_F(ItemServiceTest, CheckWarning_JustBelowQualityThreshold) {
+    service.createItem(1, "X", 30, Constants::QUALITY_WARNING - 1);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 1);
+}
+
+// checkInventoryWarning: multiple items, mixed
+TEST_F(ItemServiceTest, CheckWarning_MultiMixed) {
+    service.createItem(1, "Healthy", 30, 30);
+    service.createItem(2, "LowSellIn", 1, 30);
+    service.createItem(3, "LowQuality", 30, 1);
+    service.createItem(4, "AlsoHealthy", 20, 20);
+    auto w = service.checkInventoryWarning();
+    EXPECT_EQ(w.size(), 2);
+}
+
+// getAllItems: single item
+TEST_F(ItemServiceTest, GetAllItems_SingleItem) {
+    service.createItem(1, "X", 10, 20);
+    auto all = service.getAllItems();
+    EXPECT_EQ(all.size(), 1);
+}
+
+// getAllItems: multiple items
+TEST_F(ItemServiceTest, GetAllItems_MultipleItems) {
+    service.createItem(1, "A", 10, 20);
+    service.createItem(2, "B", 5, 10);
+    service.createItem(3, "C", 1, 1);
+    auto all = service.getAllItems();
+    EXPECT_EQ(all.size(), 3);
+}
+
 

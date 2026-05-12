@@ -95,7 +95,7 @@ TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly10Days) {
 TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly6Days) {
     MockDatabase::items.push_back(Item(1, Constants::BACKSTAGE_PASS, 6, 20));
     service.dailySettlement();
-    EXPECT_EQ(MockDatabase::items[0].quality, 22); // +2 when 6-10 days
+    EXPECT_EQ(MockDatabase::items[0].quality, 23); // sellIn becomes 5, which is < 11 and < 6, so +3
 }
 
 TEST_F(GildedRoseServiceTest, Settlement_BackstagePass_Exactly5Days) {

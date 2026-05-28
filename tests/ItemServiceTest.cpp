@@ -25,11 +25,13 @@ protected:
         // Start each test with a clean slate
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
 
     void TearDown() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
 };
 

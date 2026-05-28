@@ -8,6 +8,7 @@ protected:
     void SetUp() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
         User admin;
         admin.userId = 1;
         admin.username = "admin";
@@ -18,6 +19,7 @@ protected:
     void TearDown() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
 };
 

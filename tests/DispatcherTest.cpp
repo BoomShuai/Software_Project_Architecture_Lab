@@ -13,6 +13,7 @@ protected:
     void SetUp() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
 
         // Add a test user for login
         User admin;
@@ -28,6 +29,7 @@ protected:
     void TearDown() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
         delete dispatcher;
     }
 };
@@ -86,6 +88,7 @@ TEST_F(DispatcherTest, GetItem_WithToken_MissingId) {
 
 TEST_F(DispatcherTest, GetItem_WithToken_ValidId) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     HttpRequest req("GET", "/api/items");
     req.setHeader("Authorization", "Bearer admin_secret_token");
     req.setQueryParam("id", "1");
@@ -95,6 +98,7 @@ TEST_F(DispatcherTest, GetItem_WithToken_ValidId) {
 
 TEST_F(DispatcherTest, UpdateItem_WithToken) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     HttpRequest req("PUT", "/api/items");
     req.setHeader("Authorization", "Bearer admin_secret_token");
     req.setQueryParam("id", "1");
@@ -108,6 +112,7 @@ TEST_F(DispatcherTest, UpdateItem_WithToken) {
 
 TEST_F(DispatcherTest, DeleteItem_WithToken) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     HttpRequest req("DELETE", "/api/items");
     req.setHeader("Authorization", "Bearer admin_secret_token");
     req.setQueryParam("id", "1");

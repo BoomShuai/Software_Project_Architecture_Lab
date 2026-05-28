@@ -10,10 +10,12 @@ protected:
     void SetUp() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
     void TearDown() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
 };
 
@@ -34,6 +36,7 @@ TEST_F(ItemControllerTest, AddItem_MultipleItems) {
 
 TEST_F(ItemControllerTest, GetItem_HappyPath) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     EXPECT_NO_THROW(controller.handleGetItemRequest(1));
 }
 
@@ -45,6 +48,7 @@ TEST_F(ItemControllerTest, GetItem_NotFound) {
 
 TEST_F(ItemControllerTest, UpdateItem_HappyPath) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     EXPECT_NO_THROW(controller.handleUpdateItemRequest(1, "Gold Sword", 15, 30));
     EXPECT_EQ(MockDatabase::items[0].name, "Gold Sword");
 }
@@ -57,6 +61,7 @@ TEST_F(ItemControllerTest, UpdateItem_NotFound) {
 
 TEST_F(ItemControllerTest, DeleteItem_HappyPath) {
     MockDatabase::items.push_back(Item(1, "Sword", 10, 20));
+    MockDatabase::rebuildIndex();
     EXPECT_NO_THROW(controller.handleDeleteItemRequest(1));
     EXPECT_EQ(MockDatabase::items.size(), 0);
 }

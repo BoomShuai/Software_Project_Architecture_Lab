@@ -9,10 +9,12 @@ protected:
     void SetUp() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
     void TearDown() override {
         MockDatabase::items.clear();
         MockDatabase::users.clear();
+        MockDatabase::rebuildIndex();
     }
 };
 

@@ -50,3 +50,26 @@ if(BUILD_TESTS)
     include(GoogleTest)
     gtest_discover_tests(GildedRoseTests)
 endif()
+
+# =====================================================
+# Benchmark configuration with Google Benchmark
+# =====================================================
+option(BUILD_BENCHMARKS "Build performance benchmarks" OFF)
+
+if(BUILD_BENCHMARKS)
+    include(FetchContent)
+    FetchContent_Declare(
+        googlebenchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG v1.8.3
+    )
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googlebenchmark)
+
+    file(GLOB_RECURSE BENCH_SOURCES "benchmarks/*.cpp")
+
+    add_executable(GildedRoseBenchmarks ${BENCH_SOURCES} ${LIB_SOURCES})
+    target_include_directories(GildedRoseBenchmarks PRIVATE src)
+    target_link_libraries(GildedRoseBenchmarks benchmark::benchmark benchmark::benchmark_main sqlite3 pthread)
+endif()

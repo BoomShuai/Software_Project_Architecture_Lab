@@ -4,6 +4,7 @@
 std::vector<Item> MockDatabase::items;
 std::vector<User> MockDatabase::users;
 sqlite3* MockDatabase::db = nullptr;
+std::unordered_map<int, size_t> MockDatabase::itemIndex;
 
 void MockDatabase::init() {
     items.push_back(Item(1, "+5 Dexterity Vest", 10, 20));
@@ -21,9 +22,20 @@ void MockDatabase::init() {
     admin.password = "123456";
     admin.token = "Bearer admin_secret_token";
     users.push_back(admin);
+
+    // Build hash-map index for O(1) lookups
+    rebuildIndex();
     
     // Create real sqlite database for DBeaver testing
     createRealDatabase();
+}
+
+void MockDatabase::rebuildIndex() {
+    itemIndex.clear();
+    itemIndex.reserve(items.size());
+    for (size_t i = 0; i < items.size(); i++) {
+        itemIndex[items[i].id] = i;
+    }
 }
 
 void MockDatabase::createRealDatabase() {

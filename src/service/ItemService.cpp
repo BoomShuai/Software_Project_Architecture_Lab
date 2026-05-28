@@ -20,29 +20,44 @@ void ItemService::createItem(int id, std::string name, int sellIn, int quality) 
             throw ValidationException("Quality must be between 0 and 50");
         }
     }
-    for (const auto& item : MockDatabase::items) {
-        if (item.id == id) {
-            Logger::logWarn("Duplicate ID detected: " + std::to_string(id), "ItemService");
-            throw ValidationException("Item ID already exists");
-        }
+
+    // OPTIMIZED: O(1) duplicate check using HashMap index (was O(n) linear scan)
+    if (MockDatabase::itemIndex.find(id) != MockDatabase::itemIndex.end()) {
+        Logger::logWarn("Duplicate ID detected: " + std::to_string(id), "ItemService");
+        throw ValidationException("Item ID already exists");
     }
 
     Item item(id, name, sellIn, quality);
     MockDatabase::items.push_back(item);
+    MockDatabase::rebuildIndex(); // Maintain index consistency
 
     // Post-condition assertion: verify item was actually added
     assert(!MockDatabase::items.empty() && "Post-condition failed: items should not be empty after add");
+
+    // OPTIMIZED: Pre-populate cache with new item
+    itemCache.put(id, item);
+
     Logger::logInfo("Item created successfully: id=" + std::to_string(id), "ItemService");
 }
 
 Item ItemService::getItem(int id) {
     Logger::logDebug("getItem called: id=" + std::to_string(id), "ItemService");
 
-    for (size_t i = 0; i < MockDatabase::items.size(); i++) {
-        if (MockDatabase::items[i].id == id) {
-            Logger::logDebug("Item found: " + MockDatabase::items[i].name, "ItemService");
-            return MockDatabase::items[i];
-        }
+    // OPTIMIZED: Check LRU cache first (O(1) cache hit)
+    auto cached = itemCache.get(id);
+    if (cached.has_value()) {
+        Logger::logDebug("Cache HIT for item id=" + std::to_string(id), "ItemService");
+        return cached.value();
+    }
+
+    // OPTIMIZED: O(1) HashMap lookup (was O(n) linear scan)
+    auto indexIt = MockDatabase::itemIndex.find(id);
+    if (indexIt != MockDatabase::itemIndex.end()) {
+        Item& found = MockDatabase::items[indexIt->second];
+        Logger::logDebug("Item found via index: " + found.name, "ItemService");
+        // Populate cache for future accesses
+        itemCache.put(id, found);
+        return found;
     }
 
     Logger::logWarn("Item not found: id=" + std::to_string(id), "ItemService");
@@ -52,33 +67,41 @@ Item ItemService::getItem(int id) {
 void ItemService::updateItem(int id, std::string name, int sellIn, int quality) {
     Logger::logDebug("updateItem called: id=" + std::to_string(id), "ItemService");
 
-    bool isFound = false;
-    for (size_t i = 0; i < MockDatabase::items.size(); i++) {
-        if (MockDatabase::items[i].id == id) {
-            MockDatabase::items[i].name = name;
-            MockDatabase::items[i].sellIn = sellIn;
-            MockDatabase::items[i].quality = quality;
-            isFound = true;
-            Logger::logInfo("Item updated: id=" + std::to_string(id) + " -> name=" + name, "ItemService");
-            break;
-        }
+    // OPTIMIZED: O(1) lookup using HashMap index (was O(n) linear scan)
+    auto indexIt = MockDatabase::itemIndex.find(id);
+    if (indexIt != MockDatabase::itemIndex.end()) {
+        Item& item = MockDatabase::items[indexIt->second];
+        item.name = name;
+        item.sellIn = sellIn;
+        item.quality = quality;
+        Logger::logInfo("Item updated: id=" + std::to_string(id) + " -> name=" + name, "ItemService");
+
+        // OPTIMIZED: Invalidate stale cache entry, then cache updated item
+        itemCache.invalidate(id);
+        itemCache.put(id, item);
+        return;
     }
-    if (!isFound) {
-        Logger::logWarn("Update failed - item not found: id=" + std::to_string(id), "ItemService");
-        throw ItemNotFoundException(id);
-    }
+
+    Logger::logWarn("Update failed - item not found: id=" + std::to_string(id), "ItemService");
+    throw ItemNotFoundException(id);
 }
 
 void ItemService::deleteItem(int id) {
     Logger::logDebug("deleteItem called: id=" + std::to_string(id), "ItemService");
 
-    for (auto it = MockDatabase::items.begin(); it != MockDatabase::items.end(); ++it) {
-        if (it->id == id) {
-            Logger::logInfo("Item deleted: id=" + std::to_string(id) + ", name=" + it->name, "ItemService");
-            MockDatabase::items.erase(it);
-            return;
-        }
+    // OPTIMIZED: O(1) lookup using HashMap index (was O(n) linear scan)
+    auto indexIt = MockDatabase::itemIndex.find(id);
+    if (indexIt != MockDatabase::itemIndex.end()) {
+        size_t pos = indexIt->second;
+        Logger::logInfo("Item deleted: id=" + std::to_string(id) + ", name=" + MockDatabase::items[pos].name, "ItemService");
+        MockDatabase::items.erase(MockDatabase::items.begin() + pos);
+        MockDatabase::rebuildIndex(); // Rebuild index after structural change
+
+        // OPTIMIZED: Invalidate cache entry for deleted item
+        itemCache.invalidate(id);
+        return;
     }
+
     Logger::logWarn("Delete target not found: id=" + std::to_string(id), "ItemService");
 }
 

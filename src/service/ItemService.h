@@ -2,6 +2,7 @@
 #define ITEM_SERVICE_H
 
 #include "../model/Item.h"
+#include "../utils/LRUCache.h"
 #include <vector>
 #include <string>
 
@@ -10,6 +11,10 @@
  * @brief Handles core business logic for managing items.
  * 
  * Provides CRUD operations and business specific queries (like warning checks).
+ * 
+ * Performance optimizations (Experiment 3):
+ * - Uses MockDatabase::itemIndex (HashMap) for O(1) lookups instead of O(n) scans
+ * - Integrates LRU Cache for frequently accessed items
  */
 class ItemService {
 public:
@@ -26,6 +31,10 @@ public:
 
     /**
      * @brief Retrieves an item by its ID.
+     * 
+     * Uses LRU cache for O(1) cached lookups, falls back to
+     * HashMap index for O(1) uncached lookups.
+     * 
      * @param id The item identifier.
      * @return The found Item object.
      * @throws ItemNotFoundException if the item does not exist.
@@ -60,6 +69,10 @@ public:
      * @return A list of all items in the inventory.
      */
     std::vector<Item> getAllItems();
+
+private:
+    /// LRU Cache: caches recently accessed items for O(1) repeated lookups
+    LRUCache<int, Item> itemCache{64};
 };
 
 #endif // ITEM_SERVICE_H

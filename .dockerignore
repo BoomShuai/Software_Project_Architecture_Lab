@@ -1,0 +1,16 @@
+# Build context excludes: keep the image small and builds fast/reproducible.
+build/
+build_test/
+build_exp4/
+build_benchmarks/
+.git/
+.gitignore
+bench/results/
+*.db
+*.o
+*.out
+.DS_Store
+.vscode/
+.idea/
+docs/
+*.md

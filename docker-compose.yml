@@ -1,0 +1,50 @@
+# =============================================================================
+# Docker Compose: load-balanced GildedRose backend (Experiment 4, bonus).
+#
+# Brings up three identical backend containers behind an Nginx load balancer,
+# mirroring deploy/cluster.sh but fully containerized and reproducible.
+#
+#   docker compose up --build
+#   curl -H "Authorization: Bearer admin_secret_token" \
+#        http://localhost:8088/api/reports/daily
+#
+# Traffic enters at http://localhost:8088 -> nginx -> {backend1,2,3}:8080.
+# =============================================================================
+services:
+  backend1: &backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gildedrose-backend:exp4
+    environment:
+      GR_CACHE: "1"
+      GR_SEED_ITEMS: "2000000"
+    command: ["--serve", "--port", "8080", "--mode", "pool", "--threads", "16"]
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  # backend2/3 reuse the same build via the YAML anchor; the first service
+  # builds the image and the others reuse it.
+  backend2:
+    <<: *backend
+    image: gildedrose-backend:exp4
+
+  backend3:
+    <<: *backend
+    image: gildedrose-backend:exp4
+
+  loadbalancer:
+    image: nginx:1.27-alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./deploy/nginx.docker.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend1:
+        condition: service_healthy
+      backend2:
+        condition: service_healthy
+      backend3:
+        condition: service_healthy
+    restart: unless-stopped

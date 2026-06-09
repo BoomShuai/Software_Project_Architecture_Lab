@@ -1,0 +1,9 @@
+NAME                                     IMAGE                     COMMAND                   SERVICE        CREATED         STATUS                   PORTS
+gilded_rose_cpp_backend-backend1-1       gildedrose-backend:exp4   "/app/GildedRoseBack…"   backend1       4 minutes ago   Up 4 minutes (healthy)   8080/tcp
+gilded_rose_cpp_backend-backend2-1       gildedrose-backend:exp4   "/app/GildedRoseBack…"   backend2       4 minutes ago   Up 4 minutes (healthy)   8080/tcp
+gilded_rose_cpp_backend-backend3-1       gildedrose-backend:exp4   "/app/GildedRoseBack…"   backend3       4 minutes ago   Up 4 minutes (healthy)   8080/tcp
+gilded_rose_cpp_backend-loadbalancer-1   nginx:1.27-alpine         "/docker-entrypoint.…"   loadbalancer   4 minutes ago   Up 19 seconds            0.0.0.0:8088->80/tcp, [::]:8088->80/tcp
+
+=== end-to-end requests through dockerized Nginx LB on :8088 ===
+lb-health: nginx lb ok
+report endpoint (6x): 200 200 200 200 200 200 

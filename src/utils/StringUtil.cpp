@@ -47,3 +47,19 @@ bool StringUtil::endsWith(const std::string& str, const std::string& suffix) {
     if (str.length() < suffix.length()) return false;
     return str.substr(str.length() - suffix.length()) == suffix;
 }
+
+std::string StringUtil::escapeJson(const std::string& str) {
+    std::string out;
+    out.reserve(str.size() + 16);
+    for (char c : str) {
+        switch (c) {
+            case '"':  out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n";  break;
+            case '\r': out += "\\r";  break;
+            case '\t': out += "\\t";  break;
+            default:   out += c;      break;
+        }
+    }
+    return out;
+}

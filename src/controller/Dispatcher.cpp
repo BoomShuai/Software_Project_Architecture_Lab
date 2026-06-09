@@ -4,12 +4,18 @@
 #include "../repository/MockDatabase.h"
 #include "../interceptor/TokenInterceptor.h"
 #include "../utils/Exceptions.h"
+#include "../service/ReportService.h"
+#include "../service/CacheService.h"
 #include <stdexcept>
 #include <exception>
+#include <cstdlib>
 
 Dispatcher::Dispatcher(ItemController* ic, AuthController* ac) {
     itemController = ic;
     authController = ac;
+    // Caching is opt-in via env so the before/after load test can toggle it
+    // without recompiling: GR_CACHE=1 enables the report cache.
+    cacheEnabled_ = (std::getenv("GR_CACHE") != nullptr);
 }
 
 HttpResponse Dispatcher::dispatch(HttpRequest request) {
@@ -94,6 +100,31 @@ HttpResponse Dispatcher::dispatch(HttpRequest request) {
             std::string dbResult = MockDatabase::safeQuery(rawInput);
             response.setStatusCode(200);
             response.setBody(dbResult);
+        }
+        // READ-HEAVY ENDPOINT (scalability hot path).
+        // Recomputes an O(n) aggregate over the whole inventory. Under load
+        // this is the CPU bottleneck the cache + thread-pool target.
+        else if (path == "/api/reports/daily" && method == "GET") {
+            const std::string cacheKey = "report:daily";
+            if (cacheEnabled_) {
+                auto cached = cache_.get(cacheKey);
+                if (cached.has_value()) {
+                    response.setStatusCode(200);
+                    response.setHeader("X-Cache", "HIT");
+                    response.setBody(*cached);
+                    return response;
+                }
+            }
+            ReportService reportService;
+            std::string report = reportService.generateDailyInventoryReport();
+            std::string jsonBody =
+                "{\"report\":\"" + StringUtil::escapeJson(report) + "\"}";
+            if (cacheEnabled_) {
+                cache_.set(cacheKey, jsonBody, 30);
+            }
+            response.setStatusCode(200);
+            response.setHeader("X-Cache", cacheEnabled_ ? "MISS" : "OFF");
+            response.setBody(jsonBody);
         }
         else {
             response.setStatusCode(404);

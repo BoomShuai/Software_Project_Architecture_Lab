@@ -28,6 +28,12 @@ public:
     std::string getPath();
     
     void parseRawRequest(std::string raw);
+
+private:
+    /// Parses a URL-encoded query string ("a=1&b=2") into queryParams.
+    void parseQueryString(const std::string& query);
+    /// Decodes percent-encoding and '+' in a query token.
+    static std::string urlDecode(const std::string& s);
 };
 
 #endif // HTTP_REQUEST_H

@@ -1,5 +1,6 @@
 #include "MockDatabase.h"
 #include <iostream>
+#include <cstdlib>
 
 std::vector<Item> MockDatabase::items;
 std::vector<User> MockDatabase::users;
@@ -15,7 +16,7 @@ void MockDatabase::init() {
     items.push_back(Item(6, "Backstage passes to a TAFKAL80ETC concert", 15, 20));
     items.push_back(Item(7, "Backstage passes to a TAFKAL80ETC concert", 10, 49));
     items.push_back(Item(8, "Backstage passes to a TAFKAL80ETC concert", 5, 49));
-    
+
     User admin;
     admin.userId = 1;
     admin.username = "admin";
@@ -23,12 +24,36 @@ void MockDatabase::init() {
     admin.token = "Bearer admin_secret_token";
     users.push_back(admin);
 
+    // Scalability experiment: optionally seed a large inventory so that
+    // read-heavy report endpoints do real O(n) work and the scale-up /
+    // caching optimizations produce measurable differences under load.
+    // Controlled by env var so the unit-test fixtures stay at 8 items.
+    if (const char* seedEnv = std::getenv("GR_SEED_ITEMS")) {
+        long n = std::strtol(seedEnv, nullptr, 10);
+        if (n > 0) seedLargeInventory(static_cast<size_t>(n));
+    }
+
     // Build hash-map index for O(1) lookups
     rebuildIndex();
-    
+
     // Create real sqlite database for DBeaver testing
     createRealDatabase();
 }
+
+void MockDatabase::seedLargeInventory(size_t count) {
+    items.reserve(items.size() + count);
+    int nextId = 1000;
+    const char* names[] = {"+5 Dexterity Vest", "Aged Brie",
+                           "Elixir of the Mongoose",
+                           "Backstage passes to a TAFKAL80ETC concert",
+                           "Conjured Mana Cake"};
+    for (size_t i = 0; i < count; ++i) {
+        int sellIn = static_cast<int>(i % 30) - 5; // mix of expired/expiring
+        int quality = static_cast<int>(i % 50);
+        items.push_back(Item(nextId++, names[i % 5], sellIn, quality));
+    }
+}
+
 
 void MockDatabase::rebuildIndex() {
     itemIndex.clear();

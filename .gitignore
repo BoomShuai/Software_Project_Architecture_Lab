@@ -1,5 +1,7 @@
 build/
 build_test/
+build_exp4/
+build_benchmarks/
 *.o
 *.out
 .DS_Store
@@ -11,3 +13,5 @@ GildedRoseBackend_v2
 test_sqlite
 test_sqlite.cpp
 gilded_rose.db
+demo_logger
+demo_logger.cpp

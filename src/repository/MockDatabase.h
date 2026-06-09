@@ -29,6 +29,14 @@ public:
     static std::string safeQuery(std::string userInput);
 
     /**
+     * @brief Seeds @p count synthetic items to simulate a large inventory.
+     *
+     * Used by the scalability experiment to make read-heavy endpoints do
+     * real O(n) work. Not invoked by unit tests (they keep the 8-item set).
+     */
+    static void seedLargeInventory(size_t count);
+
+    /**
      * @brief Rebuilds the item ID -> vector index mapping.
      *
      * Must be called after any structural modification to the items vector

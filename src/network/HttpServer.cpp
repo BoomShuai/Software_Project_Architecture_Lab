@@ -118,34 +118,61 @@ void HttpServer::handleConnection(int clientFd) {
     int one = 1;
     ::setsockopt(clientFd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 
-    std::string raw;
-    char buf[8192];
-    // Read until we have the full header block. Bodies in this API are small
-    // and carried via query params, so the header terminator is sufficient.
-    while (raw.find("\r\n\r\n") == std::string::npos) {
-        ssize_t n = ::recv(clientFd, buf, sizeof(buf), 0);
-        if (n <= 0) break;
-        raw.append(buf, static_cast<size_t>(n));
-        if (raw.size() > 65536) break; // guard against oversized requests
-    }
+    // Idle timeout on the socket so a kept-alive connection that goes quiet
+    // releases its worker instead of blocking a pool slot forever.
+    timeval tv{};
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    ::setsockopt(clientFd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    if (raw.empty()) {
-        ::close(clientFd);
-        return;
-    }
+    std::string buffer;
+    char chunk[8192];
 
-    HttpRequest request("", "");
-    request.parseRawRequest(raw);
+    // HTTP/1.1 keep-alive loop: serve every request that arrives on this one
+    // connection, then move on. Reusing the connection avoids a TCP handshake
+    // (and an ephemeral port + TIME_WAIT socket) per request, which is what
+    // lets a load generator sustain high request rates without exhausting the
+    // OS port range -- the failure that corrupted the first benchmark run.
+    while (running_) {
+        // Read until we have a full header block for the next request.
+        size_t headerEnd;
+        while ((headerEnd = buffer.find("\r\n\r\n")) == std::string::npos) {
+            ssize_t n = ::recv(clientFd, chunk, sizeof(chunk), 0);
+            if (n <= 0) { ::close(clientFd); return; } // closed / timed out
+            buffer.append(chunk, static_cast<size_t>(n));
+            if (buffer.size() > 65536) { ::close(clientFd); return; }
+        }
 
-    HttpResponse response = dispatcher_->dispatch(request);
-    response.setHeader("Connection", "close");
+        // This API carries no request bodies (params are in the query string),
+        // so the header terminator delimits one complete request.
+        std::string requestText = buffer.substr(0, headerEnd + 4);
+        buffer.erase(0, headerEnd + 4); // keep any pipelined bytes
 
-    std::string out = response.generateRawResponse();
-    size_t sent = 0;
-    while (sent < out.size()) {
-        ssize_t n = ::send(clientFd, out.data() + sent, out.size() - sent, 0);
-        if (n <= 0) break;
-        sent += static_cast<size_t>(n);
+        HttpRequest request("", "");
+        request.parseRawRequest(requestText);
+
+        // Honor the client's keep-alive preference (HTTP/1.1 defaults to keep
+        // -alive unless the client says otherwise). The single-thread baseline
+        // intentionally runs connection-per-request: a kept-alive connection
+        // would monopolize the lone worker and starve every other client, so
+        // the naive server closes after each response. The thread-pool server
+        // keeps connections alive, which is one of the things being optimized.
+        std::string conn = request.getHeader("Connection");
+        bool keepAlive = (mode_ == Mode::THREAD_POOL) &&
+                         (conn != "close" && conn != "Close");
+
+        HttpResponse response = dispatcher_->dispatch(request);
+        response.setHeader("Connection", keepAlive ? "keep-alive" : "close");
+
+        std::string out = response.generateRawResponse();
+        size_t sent = 0;
+        while (sent < out.size()) {
+            ssize_t n = ::send(clientFd, out.data() + sent, out.size() - sent, 0);
+            if (n <= 0) { ::close(clientFd); return; }
+            sent += static_cast<size_t>(n);
+        }
+
+        if (!keepAlive) break;
     }
 
     ::close(clientFd);

@@ -1,0 +1,11 @@
+{
+  "scenario": "B_threadpool_nocache",
+  "vus": 50,
+  "duration": "15s",
+  "reqs_total": 9685,
+  "reqs_per_sec": 643.9325991061139,
+  "latency_avg_ms": 77.44045255549833,
+  "latency_p95_ms": 139.36979999999997,
+  "latency_max_ms": 262.43,
+  "error_rate": 0
+}

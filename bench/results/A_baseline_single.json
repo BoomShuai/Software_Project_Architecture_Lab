@@ -1,0 +1,11 @@
+{
+  "scenario": "A_baseline_single",
+  "vus": 50,
+  "duration": "15s",
+  "reqs_total": 3904,
+  "reqs_per_sec": 256.99855313237725,
+  "latency_avg_ms": 193.15816137295064,
+  "latency_p95_ms": 197.5411,
+  "latency_max_ms": 209.671,
+  "error_rate": 0
+}

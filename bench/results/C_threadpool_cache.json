@@ -1,0 +1,11 @@
+{
+  "scenario": "C_threadpool_cache",
+  "vus": 50,
+  "duration": "15s",
+  "reqs_total": 1989868,
+  "reqs_per_sec": 132657.72516509314,
+  "latency_avg_ms": 0.3361565073663168,
+  "latency_p95_ms": 0.833,
+  "latency_max_ms": 33.855,
+  "error_rate": 0
+}

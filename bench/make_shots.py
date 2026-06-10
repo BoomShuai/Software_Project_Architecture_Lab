@@ -171,6 +171,14 @@ def main():
     render(txt, "shot_artifacts.png", title="实验4 交付物清单",
            width_chars=80, font_size=14)
 
+    # 5) Git commit history for the Experiment 4 increment (appendix A).
+    glog = run("cd '%s/..' && git log --oneline --graph -12 "
+               "--pretty=format:'%%h  %%ad  %%s' --date=format:'%%m-%%d %%H:%%M' "
+               "2>&1" % HERE)
+    txt = ("$ git log --oneline --graph --date=short\n\n" + glog)
+    render(txt, "shot_git_log.png",
+           title="git log — 实验四增量提交历史", width_chars=104, font_size=13)
+
 
 if __name__ == "__main__":
     main()
